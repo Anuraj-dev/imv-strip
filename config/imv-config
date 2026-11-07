@@ -1,0 +1,19 @@
+[options]
+
+# Small "current / total" counter in the top-left corner, always visible
+overlay = true
+overlay_text = " $imv_current_index / $imv_file_count "
+overlay_font = JetBrainsMono Nerd Font:10
+overlay_text_color = e6e6e6
+overlay_background_alpha = 99
+
+[binds]
+
+# Print the current image file
+<Ctrl+p> = exec lp "$imv_current_file"
+
+# Rotate the currently open image by 90 degrees
+<Ctrl+r> = exec mogrify -rotate 90 "$imv_current_file"
+
+# Edit the current image in Omasnap and quit the viewer
+<Ctrl+e> = exec omasnap "$imv_current_file" & ; quit

@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Open an image with its folder's images loaded, so Left/Right step through the folder.
+# Uses the thumbnail-strip viewer in ~/.local/share/imv-strip; plain imv is the fallback.
+set -eu
+
+if [ $# -eq 0 ]; then
+  exec imv
+fi
+
+file=$(realpath -- "$1")
+viewer=$HOME/.local/share/imv-strip/imv-strip.py
+
+if [ ! -x "$viewer" ]; then
+  # imv given a single file only loads that file, which leaves arrow keys with nothing to move to.
+  dir=$(dirname -- "$file")
+  files=()
+  while IFS= read -r -d '' f; do
+    files+=("$f")
+  done < <(find "$dir" -maxdepth 1 -type f \( \
+    -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.gif' -o -iname '*.webp' \
+    -o -iname '*.bmp' -o -iname '*.tif' -o -iname '*.tiff' -o -iname '*.avif' -o -iname '*.heic' \
+    -o -iname '*.svg' -o -iname '*.jxl' -o -iname '*.qoi' \) -print0 | sort -z -V)
+  exec imv -n "$file" "${files[@]}"
+fi
+
+# On Hyprland, launch with window rules scoped to this one window: floating, sized
+# for the strip plus the image, centred, and opaque so images show true colours.
+if [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] && command -v hyprctl >/dev/null; then
+  cmd=$(printf '%q %q' "$viewer" "$file")
+  cmd=${cmd//\\/\\\\}
+  cmd=${cmd//\"/\\\"}
+  rules='{ float = true, size = { 1200, 780 }, center = true, opacity = "1.0 override 1.0 override" }'
+  if [ "$(hyprctl eval "hl.exec_cmd(\"$cmd\", $rules)" 2>&1)" = ok ]; then
+    exit 0
+  fi
+fi
+
+exec "$viewer" "$file"
