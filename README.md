@@ -1,51 +1,52 @@
-# imv-strip
+<h1 align="center">imv-strip</h1>
 
-A thumbnail-strip image viewer for [Omarchy](https://omarchy.org) (Hyprland). Open an image and you get every image in its folder down the left side, the current one highlighted, and a small `N / total` counter in the corner. Arrow keys step through the folder, the way PowerPoint's slide pane works.
+<p align="center">
+  Thumbnail-strip image viewer for Omarchy and Hyprland.<br />
+  Open one image and the rest of its folder sits in a strip beside it.
+</p>
 
-![imv-strip showing a folder of images with the thumbnail strip on the left](docs/strip-viewer.png)
+<p align="center">
+  <a href="#installation">Install</a>
+  ·
+  <a href="#keys">Keys</a>
+  ·
+  <a href="#notes-and-limits">Notes</a>
+</p>
 
-## What it does
+<p align="center">
+  <img src="docs/strip-viewer.png" alt="imv-strip showing eight numbered thumbnails down the left with the fifth highlighted, and the 5 / 8 counter above a large image" />
+</p>
 
-- Opens the clicked image with every image in its folder loaded, in natural sort order.
-- Thumbnail strip on the left. Click a thumbnail, or press Enter on a focused one, to jump to it.
-- Left/Right step through the folder and wrap around, like imv.
-- `N / total` counter in the top-left, styled from your imv config.
-- Highlight colour follows your Hyprland active border, so it matches the theme.
-- Opens as a floating, centred 1200×780 window (rules apply only to that window).
-- Falls back to plain `imv` if the viewer is missing or Hyprland isn't running.
+imv-strip is a thumbnail-strip viewer for [Omarchy](https://omarchy.org). It lists every image in the folder in natural order, highlights the current one, and shows an `N / total` counter in the top-left. Left and Right step through the folder and wrap around, the way the slide pane works in PowerPoint.
 
-## Keys
+The viewer is a GTK 4 window written in Python, started by a short Bash launcher. It needs imv, GTK 4 with python-gobject, and Hyprland. The installer checks for all three. No account, API key or network access is needed.
 
-| Key | Action |
-|---|---|
-| Left / Right (or h / l) | Previous / next image, wraps around |
-| Up / Down | Move without wrapping |
-| Home / End | First / last image |
-| Space / Backspace | Next / previous |
-| PgUp / PgDn | Previous / next (one image at a time) |
-| Click, or Enter on a row | Jump to that image |
-| f | Toggle fullscreen |
-| o | Open the current image in imv (zoom and pan) |
-| Ctrl+p | Print the current image |
-| Ctrl+r | Rotate 90° clockwise. **Overwrites the file in place.** |
-| Ctrl+e | Edit in omasnap, then close |
-| q / Esc | Quit. Esc leaves fullscreen first if it is on. |
+## What you get
 
-Trash keys from the imv config are deliberately not included.
+- **Every image in the folder, in natural order.** The viewer picks up every file with one of 13 image extensions in the same folder. Subfolders are skipped. Names sort by number, so `img2.png` comes before `img10.png`.
+- **Thumbnails load on demand.** Three worker threads decode 144×90 thumbnails, newest request first. Rows that scroll out of view before their turn are skipped. Up to 400 thumbnails stay in memory.
+- **Reused thumbnail cache.** If another app has already made a thumbnail in the freedesktop cache, and its modification time still matches the file, the viewer uses that instead of decoding the image again.
+- **Neighbours decode ahead.** A background thread decodes the current image, the one before it and the next two, so stepping through the folder usually finds the next image ready.
+- **Highlight from your Hyprland border.** The selected thumbnail's ring and number use the first colour of `general:col.active_border`, read with `hyprctl -j`. If that lookup fails, the highlight is `#7aa2f7`.
+- **A window rule for one launch.** `imv-dir` opens the viewer through `hyprctl eval`. The window floats, centres at 1200×780 and stays opaque. The rule applies only to that window, and your Hyprland config is not changed.
+- **Image actions from your imv keys.** `Ctrl+p` prints through `lp`, `Ctrl+r` rotates with ImageMagick's `mogrify`, and `Ctrl+e` opens omasnap and closes the viewer.
+- **EXIF rotation applied.** Full images and thumbnails both apply the embedded orientation tag, so photos from phones and cameras show upright.
 
-## Requirements
+## Installation
 
-- Omarchy (Hyprland). Other Hyprland setups should work, but only Omarchy is tested.
-- `imv`, `gtk4`, `python-gobject`, `python3`
-- Optional: `JetBrainsMono Nerd Font`, used by the counter and strip labels. Other monospace fonts fall back automatically.
+### Requirements
+
+- Omarchy, or another Hyprland setup. Only Omarchy is tested.
+- `imv`, GTK 4 with `python-gobject`, `python3`, and Hyprland's `hyprctl`.
+- Optional: JetBrainsMono Nerd Font for the counter and strip labels. Other monospace fonts fall back automatically.
 
 Install the packages:
 
 ```sh
-sudo pacman -S --needed imv gtk4 python-gobject
+sudo pacman -S --needed imv gtk4 python-gobject hyprland
 ```
 
-## Install
+### Install
 
 ```sh
 git clone https://github.com/Anuraj-dev/imv-strip.git ~/Projects/imv-strip
@@ -53,51 +54,59 @@ cd ~/Projects/imv-strip
 bash install.sh
 ```
 
+If a dependency is missing, `install.sh` prints the pacman command and exits before it changes anything. It does not run `sudo`.
+
 `install.sh` copies four files into place:
 
 | Installed file | Purpose |
-|---|---|
+| --- | --- |
 | `~/.local/bin/imv-dir` | Launcher. Opens the viewer with the folder loaded. |
 | `~/.local/share/imv-strip/imv-strip.py` | The viewer. |
-| `~/.config/imv/config` | imv settings: counter style and key bindings. |
-| `~/.local/share/applications/imv.desktop` | Makes the viewer the default for images. |
+| `~/.config/imv/config` | Plain imv settings for the counter overlay and Ctrl binds. |
+| `~/.local/share/applications/imv.desktop` | Desktop entry for common image types. It runs `imv-dir` and does not change your default app. |
 
-Anything it replaces is first copied to `~/.local/state/imv-strip-backup/<timestamp>/`. Nothing is deleted, and no packages are installed.
+Anything it replaces is first copied to `~/.local/state/imv-strip-backup/<timestamp>/`, at the same path relative to your home folder. Nothing is deleted and no packages are installed. The script then checks the installed viewer with `py_compile` and the launcher with `bash -n`.
 
-Try it:
+### Try it
 
 ```sh
 imv-dir ~/Pictures/some-image.png
 ```
 
-## Setup prompt for your own Claude / Codex agent
+Run `imv-dir` with no argument to open plain imv.
 
-Paste this into an agent on your Omarchy machine:
+## Keys
 
-```text
-Set up imv-strip on this Omarchy machine.
+| Key | Action |
+| --- | --- |
+| `Left` / `Right`, or `h` / `l` | Previous / next image, wraps around |
+| `Up` / `Down` | Previous / next image, stops at the ends |
+| `Home` / `End` | First / last image |
+| `Space` / `Backspace` | Next / previous image |
+| `PgUp` / `PgDn` | Previous / next image |
+| Click, or `Enter` on a row | Jump to that image |
+| `f` | Toggle fullscreen |
+| `o` | Open the current image in imv, for zoom and pan |
+| `Ctrl+p` | Print the current image |
+| `Ctrl+r` | Rotate 90° clockwise, overwriting the file in place |
+| `Ctrl+e` | Edit in omasnap, then close |
+| `q` / `Esc` | Quit. `Esc` leaves fullscreen first when it is on. |
 
-1. Confirm this is Omarchy on Hyprland: `hyprctl version` should work and the session should be Wayland.
-2. Clone https://github.com/Anuraj-dev/imv-strip into ~/Projects/imv-strip (skip if it already exists and run `git pull` there instead).
-3. Check the requirements: imv, gtk4, python-gobject, python3. If any are missing, show me the `sudo pacman -S --needed imv gtk4 python-gobject` command and ask before running it, because it needs sudo.
-4. Before running install.sh, read it and read the four target files it replaces: ~/.local/bin/imv-dir, ~/.local/share/imv-strip/imv-strip.py, ~/.config/imv/config, ~/.local/share/applications/imv.desktop. Tell me if any of them already exist and differ from the repo, so I can decide what to keep.
-5. Run `bash install.sh`. Do not edit the Hyprland config, and do not delete anything. The script backs up replaced files.
-6. Verify: run `python3 -m py_compile ~/.local/share/imv-strip/imv-strip.py` and `bash -n ~/.local/bin/imv-dir`. Then open a folder with a few images using `imv-dir <file>` and confirm the strip and the N / total counter appear.
-7. Report what you installed, where the backups are, and anything you could not verify. Do not push or change anything in the repo.
-```
+Trash keys from imv's config are left out on purpose.
 
 ## Notes and limits
 
-- The viewer has no zoom or pan. Press `o` to open the current image in imv for that.
-- Animated GIFs show only the first frame.
-- Ctrl+r rewrites the file. Use a copy if you care about the original.
-- The window placement uses `hyprctl eval` at launch. It does not change your Hyprland config.
-- Tested on one Omarchy machine only. Other displays and scale factors (fractional scaling, multi-monitor layouts) are not tested.
+- The viewer has no zoom or pan. Press `o` to open the current image in imv.
+- Animated GIFs show only their first frame.
+- `Ctrl+r` rewrites the file. Copy the image first if you want to keep the original.
+- The viewer does not read `~/.config/imv/config`. The counter's font and colours and the Ctrl binds are written into the viewer. Editing that file changes plain imv, which `o` and the fallback use.
+- `imv-dir` falls back to plain imv only when the viewer file is missing. Outside a Hyprland session it starts the viewer without the window rule, so the window tiles instead of floating and centring.
+- Tested on one Omarchy machine only. Other displays and scale factors, such as fractional scaling and multi-monitor layouts, are not tested.
 
 ## Uninstall
 
-Copy the files back from the newest folder under `~/.local/state/imv-strip-backup/`, or delete the four installed files and reinstall imv's defaults.
+Each file that `install.sh` replaced is in the newest folder under `~/.local/state/imv-strip-backup/`, at its path relative to your home folder. Copy those files back over the installed ones. Delete any installed file that has no backup copy.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+imv-strip is licensed under the [MIT License](LICENSE).
